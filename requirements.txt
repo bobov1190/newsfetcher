@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+crawl4ai
+playwright
+mistralai
+python-dotenv
+pydantic
+pydantic-settings
+httpx
+aiohttp

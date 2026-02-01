@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NewsFetcher — API Dashboard</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface-hover: #1a1a24;
+    --border: #2a2a35;
+    --border-active: #3d5af1;
+    --text: #e2e2e8;
+    --text-muted: #6b6b7a;
+    --accent: #3d5af1;
+    --accent-hover: #5272f5;
+    --accent-dim: rgba(61,90,241,0.12);
+    --success: #22c55e;
+    --error: #ef4444;
+    --tag-bg: rgba(61,90,241,0.1);
+    --tag-border: rgba(61,90,241,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    padding: 0 8px;
+  }
+  .sidebar-logo span { color: var(--text-muted); }
+
+  .sidebar-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    padding: 0 8px;
+    margin-bottom: 4px;
+  }
+
+  .category-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+  }
+  .category-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+  .category-btn.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--tag-border);
+  }
+  .category-btn .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .category-btn.active .dot { background: var(--accent); }
+  
+  .category-sources {
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    opacity: 0.6;
+  }
+
+  .main {
+    padding: 32px;
+    max-width: 900px;
+  }
+
+  .main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 28px;
+  }
+
+  .main-header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .main-header .subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .control-group label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  input[type="number"],
+  input[type="date"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    outline: none;
+    transition: border 0.15s;
+    width: 130px;
+  }
+  input[type="number"]:focus,
+  input[type="date"]:focus {
+    border-color: var(--border-active);
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.5;
+    cursor: pointer;
+  }
+
+  .btn-fetch {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, transform 0.1s;
+    align-self: flex-end;
+  }
+  .btn-fetch:hover { background: var(--accent-hover); }
+  .btn-fetch:active { transform: scale(0.97); }
+  .btn-fetch:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    min-height: 28px;
+  }
+
+  .status-tag {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--tag-bg);
+    border: 1px solid var(--tag-border);
+    color: var(--accent);
+  }
+  .status-tag.success {
+    background: rgba(34,197,94,0.1);
+    border-color: rgba(34,197,94,0.3);
+    color: var(--success);
+  }
+  .status-tag.error {
+    background: rgba(239,68,68,0.1);
+    border-color: rgba(239,68,68,0.3);
+    color: var(--error);
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .articles-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .article-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    transition: border-color 0.15s;
+    display: flex;
+    gap: 16px;
+  }
+  .article-card:hover { border-color: var(--border-active); }
+
+  .article-image {
+    width: 120px;
+    height: 120px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--surface-hover);
+  }
+
+  .article-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .article-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .article-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .article-meta {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .meta-tag {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--surface-hover);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .meta-tag.source {
+    background: var(--accent-dim);
+    border-color: var(--tag-border);
+    color: var(--accent);
+  }
+
+  .article-content {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .article-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+  }
+  .article-date {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+  }
+  .article-source-link {
+    font-size: 11px;
+    color: var(--accent);
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    transition: color 0.15s;
+  }
+  .article-source-link:hover { color: var(--accent-hover); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    opacity: 0.4;
+  }
+  .empty-state p { font-size: 14px; }
+
+  .json-toggle {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 0;
+    transition: color 0.15s;
+  }
+  .json-toggle:hover { color: var(--accent); }
+
+  .json-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    margin-top: 10px;
+    overflow-x: auto;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .json-block pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">news<span>fetcher</span></div>
+
+    <div>
+      <div class="sidebar-section-title">Categories</div>
+      <div id="categoryList" style="display:flex;flex-direction:column;gap:2px;"></div>
+    </div>
+
+    <div style="margin-top:auto;border-top:1px solid var(--border);padding-top:16px;">
+      <div class="sidebar-section-title" style="margin-bottom:8px;">Raw JSON</div>
+      <button class="json-toggle" id="jsonToggleBtn" onclick="toggleJson()">Show response ↓</button>
+      <div id="jsonBlock" class="json-block" style="display:none;margin-top:8px;">
+        <pre id="jsonContent">No data yet.</pre>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Fetch News</h1>
+        <div class="subtitle">Select a category, set params, and fetch</div>
+      </div>
+      <div class="controls">
+        <div class="control-group">
+          <label>Limit</label>
+          <input type="number" id="limitInput" value="20" min="1" max="200" />
+        </div>
+        <div class="control-group">
+          <label>From</label>
+          <input type="date" id="dateFrom" />
+        </div>
+        <div class="control-group">
+          <label>To</label>
+          <input type="date" id="dateTo" />
+        </div>
+        <button class="btn-fetch" id="fetchBtn" onclick="fetchNews()">Fetch</button>
+      </div>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+      <span class="status-tag" id="statusTag">idle</span>
+    </div>
+
+    <div id="articlesContainer">
+      <div class="empty-state">
+        <div class="icon">📰</div>
+        <p>Pick a category from the sidebar and hit <strong>Fetch</strong></p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+let selectedCategory = null;
+let jsonVisible = false;
+
+async function init() {
+  const today = new Date().toISOString().split('T')[0];
+  const week = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
+  document.getElementById('dateFrom').value = week;
+  document.getElementById('dateTo').value = today;
+
+  try {
+    const res = await fetch('/api/categories');
+    const data = await res.json();
+    renderCategories(data.categories);
+  } catch (e) {
+    console.error('Failed to load categories', e);
+  }
+}
+
+function renderCategories(categories) {
+  const list = document.getElementById('categoryList');
+  list.innerHTML = '';
+
+  for (const [name, sources] of Object.entries(categories)) {
+    const btn = document.createElement('button');
+    btn.className = 'category-btn';
+    btn.dataset.category = name;
+    btn.onclick = () => selectCategory(name);
+
+    const label = name.charAt(0).toUpperCase() + name.slice(1);
+    btn.innerHTML = `
+      <span class="dot"></span>
+      <div style="flex:1;">
+        <div>${label}</div>
+        <div class="category-sources">${sources}</div>
+      </div>
+    `;
+    list.appendChild(btn);
+  }
+}
+
+function selectCategory(name) {
+  selectedCategory = name;
+  document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+  const active = document.querySelector(`.category-btn[data-category="${name}"]`);
+  if (active) active.classList.add('active');
+}
+
+async function fetchNews() {
+  if (!selectedCategory) {
+    setStatus('Pick a category first', 'error');
+    return;
+  }
+
+  const limit = parseInt(document.getElementById('limitInput').value) || 20;
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+
+  setStatus('fetching...', 'loading');
+  document.getElementById('fetchBtn').disabled = true;
+
+  try {
+    const res = await fetch('/api/fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        category: selectedCategory,
+        limit: limit,
+        date_from: dateFrom || null,
+        date_to: dateTo || null,
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setStatus(err.detail || 'Error', 'error');
+      return;
+    }
+
+    const data = await res.json();
+    renderArticles(data);
+    updateJson(data);
+    setStatus(`${data.total_fetched} articles fetched`, 'success');
+
+  } catch (e) {
+    setStatus('Network error', 'error');
+    console.error(e);
+  } finally {
+    document.getElementById('fetchBtn').disabled = false;
+  }
+}
+
+function renderArticles(data) {
+  const container = document.getElementById('articlesContainer');
+
+  if (!data.articles || data.articles.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <p>No articles found for <strong>${data.category}</strong></p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = data.articles.map(a => `
+    <div class="article-card">
+      ${a.image_url ? `<img src="${escapeHtml(a.image_url)}" alt="Article image" class="article-image" onerror="this.style.display='none'">` : ''}
+      <div class="article-body">
+        <div class="article-card-header">
+          <div class="article-title">${escapeHtml(a.title)}</div>
+          <div class="article-meta">
+            <span class="meta-tag source">${escapeHtml(a.source_name)}</span>
+            <span class="meta-tag">${escapeHtml(a.language)}</span>
+          </div>
+        </div>
+        <div class="article-content">${escapeHtml(a.content)}</div>
+        <div class="article-footer">
+          <span class="article-date">${a.date_of_publication || '— no date'}</span>
+          <a href="${escapeHtml(a.source_url)}" target="_blank" rel="noopener" class="article-source-link">source →</a>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleJson() {
+  jsonVisible = !jsonVisible;
+  document.getElementById('jsonBlock').style.display = jsonVisible ? 'block' : 'none';
+  document.getElementById('jsonToggleBtn').textContent = jsonVisible ? 'Hide response ↑' : 'Show response ↓';
+}
+
+function updateJson(data) {
+  document.getElementById('jsonContent').textContent = JSON.stringify(data, null, 2);
+}
+
+function setStatus(msg, type) {
+  const bar = document.getElementById('statusBar');
+  const tag = document.getElementById('statusTag');
+
+  tag.className = 'status-tag';
+  if (type === 'success') tag.classList.add('success');
+  if (type === 'error') tag.classList.add('error');
+
+  if (type === 'loading') {
+    bar.innerHTML = '<div class="spinner"></div><span class="status-tag">fetching...</span>';
+  } else {
+    tag.textContent = msg;
+    bar.innerHTML = '';
+    bar.appendChild(tag);
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
